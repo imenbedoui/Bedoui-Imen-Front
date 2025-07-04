@@ -1,0 +1,68 @@
+FROM debian:bookworm
+
+# Force IPv4 for apt to avoid network issues
+RUN echo 'Acquire::ForceIPv4 "true";' > /etc/apt/apt.conf.d/99force-ipv4
+
+# Install base dependencies (grouped for better caching)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg2 \
+    lsb-release \
+    git \
+    openjdk-17-jdk \
+    sudo \
+    wget \
+    gnupg \
+    unzip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create Jenkins directory
+RUN mkdir -p /usr/share/jenkins
+
+# Download Jenkins WAR (with retry logic)
+RUN wget --tries=3 --retry-connrefused -O /usr/share/jenkins/jenkins.war \
+    https://get.jenkins.io/war-stable/latest/jenkins.war
+
+# Install Docker CLI
+RUN curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg \
+    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/docker.gpg] https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
+    > /etc/apt/sources.list.d/docker.list \
+    && apt-get update \
+    && apt-get install -y docker-ce-cli \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Docker Compose
+RUN curl -L "https://github.com/docker/compose/releases/download/v2.17.3/docker-compose-$(uname -s)-$(uname -m)" \
+    -o /usr/local/bin/docker-compose \
+    && chmod +x /usr/local/bin/docker-compose
+
+# Install Node.js and Angular CLI
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - \
+    && apt-get install -y nodejs \
+    && npm install -g @angular/cli \
+    && npm cache clean --force
+
+# Install Maven (added this section)
+ENV MAVEN_VERSION=3.9.6
+RUN wget https://archive.apache.org/dist/maven/maven-3/${MAVEN_VERSION}/binaries/apache-maven-${MAVEN_VERSION}-bin.tar.gz -P /tmp \
+    && tar -xzf /tmp/apache-maven-${MAVEN_VERSION}-bin.tar.gz -C /opt \
+    && ln -s /opt/apache-maven-${MAVEN_VERSION}/bin/mvn /usr/bin/mvn \
+    && rm -f /tmp/apache-maven-${MAVEN_VERSION}-bin.tar.gz
+
+# Set environment variables
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+ENV MAVEN_HOME=/opt/apache-maven-${MAVEN_VERSION}
+ENV PATH=$JAVA_HOME/bin:$MAVEN_HOME/bin:$PATH
+
+# Configure Jenkins user
+RUN useradd -m -d /var/jenkins_home jenkins && \
+    getent group docker || groupadd docker && \
+    usermod -aG docker jenkins
+
+VOLUME /var/jenkins_home
+EXPOSE 8080
+
+USER jenkins
+CMD ["java", "-jar", "/usr/share/jenkins/jenkins.war"]
