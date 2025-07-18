@@ -14,6 +14,8 @@ services:
       - jenkins_home:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
+    networks:
+        - devops-network
 
   nexus:
     image: sonatype/nexus3
@@ -23,6 +25,8 @@ services:
     volumes:
       - nexus-data:/nexus-data
     restart: unless-stopped
+    networks:
+        - devops-network
 
   sonarqube:
     image: sonarqube:latest
@@ -37,6 +41,8 @@ services:
     depends_on:
       - db_sonar
     restart: unless-stopped
+    networks:
+        - devops-network
 
   db_sonar:
     image: postgres:12
@@ -48,6 +54,8 @@ services:
     volumes:
       - sonar-db-data:/var/lib/postgresql/data
     restart: unless-stopped
+    networks:
+        - devops-network
 
   prometheus:
     image: prom/prometheus
@@ -57,6 +65,8 @@ services:
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
     restart: unless-stopped
+    networks:
+        - devops-network
 
   grafana:
     image: grafana/grafana
@@ -66,6 +76,8 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     restart: unless-stopped
+    networks:
+        - devops-network
 
   # db:
   #   image: mysql:8
@@ -86,3 +98,5 @@ volumes:
   sonar-db-data:
   grafana-data:
   mysql-data:
+networks:
+  devops-network:
