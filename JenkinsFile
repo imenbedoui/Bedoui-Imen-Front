@@ -84,22 +84,22 @@ pipeline {
             steps {
                 script {
                     // Create network if not exists
-                    sh "docker network create my-network || true"
-
+                    sh "docker network create devops-network || true"
+        
                     // Pull backend image
                     sh "docker pull imenbedoui/spring-kaddem2:latest"
-
+        
                     // Stop and remove old containers
                     sh "docker rm -f mysql backend frontend || true"
-
+        
                     // Run MySQL
                     sh '''
-                    docker run -d --name mysql --network my-network \
+                    docker run -d --name mysql --network devops-network \
                         -e MYSQL_ROOT_PASSWORD=rootpassword \
                         -e MYSQL_DATABASE=kaddem \
                         mysql:8
                     '''
-
+        
                     // Wait for MySQL
                     sh '''
                     for i in $(seq 1 30); do
@@ -112,22 +112,22 @@ pipeline {
                         fi
                     done
                     '''
-
+        
                     // Run backend
                     sh '''
-                    docker run -d --name backend --network my-network \
+                    docker run -d --name backend --network devops-network \
                         -p 8089:8089 imenbedoui/spring-kaddem2:latest
                     '''
-
+        
                     // Run frontend using unique tag
                     sh """
-                    docker run -d --name frontend --network my-network \
+                    docker run -d --name frontend --network devops-network \
                         -p 4200:8080 imenbedoui/front:${IMAGE_TAG}
                     """
                 }
             }
         }
-    }
+
 
     post {
         failure {
