@@ -64,7 +64,7 @@ pipeline {
         stage('Build Docker image') {
             steps {
                 script {
-                    dockerImage = docker.build("ezui7/front:${IMAGE_TAG}", "--no-cache .")
+                    dockerImage = docker.build("imenbedoui/front:${IMAGE_TAG}", "--no-cache .")
                 }
             }
         }
@@ -87,7 +87,7 @@ pipeline {
                     sh "docker network create my-network || true"
 
                     // Pull backend image
-                    sh "docker pull ezui7/spring-kaddem2:latest"
+                    sh "docker pull imenbedoui/spring-kaddem2:latest"
 
                     // Stop and remove old containers
                     sh "docker rm -f mysql backend frontend || true"
@@ -116,13 +116,13 @@ pipeline {
                     // Run backend
                     sh '''
                     docker run -d --name backend --network my-network \
-                        -p 8089:8089 ezui7/spring-kaddem2:latest
+                        -p 8089:8089 imenbedoui/spring-kaddem2:latest
                     '''
 
                     // Run frontend using unique tag
                     sh """
                     docker run -d --name frontend --network my-network \
-                        -p 4200:8080 ezui7/front:${IMAGE_TAG}
+                        -p 4200:8080 imenbedoui/front:${IMAGE_TAG}
                     """
                 }
             }
