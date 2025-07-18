@@ -6,7 +6,7 @@ pipeline {
         SONARQUBE_SERVER = 'SonarQube'                       
         NEXUS_URL = 'http://nexus:8081/repository/raw-hosted'
         APP_NAME = 'frontend-kaddem2'
-        IMAGE_TAG = "${BUILD_NUMBER}"
+        IMAGE_TAG = "${env.BUILD_NUMBER}"
     }
 
     stages {
@@ -33,7 +33,7 @@ pipeline {
                 withCredentials([string(credentialsId: 'sonar-token', variable: 'SONAR_TOKEN')]) {
                     script {
                         def scannerHome = tool name: 'SonarScanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
-                        withSonarQubeEnv('SonarQube') {
+                        withSonarQubeEnv("${SONARQUBE_SERVER}") {
                             sh """
                                 export PATH=\$PATH:${scannerHome}/bin
                                 ${scannerHome}/bin/sonar-scanner \
@@ -64,7 +64,7 @@ pipeline {
         stage('Build Docker image') {
             steps {
                 script {
-                    dockerImage = docker.build("imenbedoui/front:${IMAGE_TAG}", "--no-cache .")
+                    dockerImage = docker.build("imenbedoui/front:${env.IMAGE_TAG}", "--no-cache .")
                 }
             }
         }
@@ -74,7 +74,7 @@ pipeline {
                 script {
                     docker.withRegistry('https://index.docker.io/v1/', DOCKERHUB_CREDENTIALS) {
                         dockerImage.push()
-                        dockerImage.push("latest") // Optional: also update `latest`
+                        dockerImage.push("latest")
                     }
                 }
             }
@@ -83,51 +83,43 @@ pipeline {
         stage('Run Frontend, Backend and MySQL Containers') {
             steps {
                 script {
-                    // Create network if not exists
                     sh "docker network create devops-network || true"
-        
-                    // Pull backend image
+
                     sh "docker pull imenbedoui/spring-kaddem2:latest"
-        
-                    // Stop and remove old containers
                     sh "docker rm -f mysql backend frontend || true"
-        
-                    // Run MySQL
+
                     sh '''
-                    docker run -d --name mysql --network devops-network \
+                        docker run -d --name mysql --network devops-network \
                         -e MYSQL_ROOT_PASSWORD=rootpassword \
                         -e MYSQL_DATABASE=kaddem \
                         mysql:8
                     '''
-        
-                    // Wait for MySQL
+
                     sh '''
-                    for i in $(seq 1 30); do
-                        if docker exec mysql mysqladmin ping -uroot -prootpassword --silent; then
-                            echo "MySQL is up!"
-                            break
-                        else
-                            echo "Waiting for MySQL to start... ($i/30)"
-                            sleep 3
-                        fi
-                    done
+                        for i in $(seq 1 30); do
+                            if docker exec mysql mysqladmin ping -uroot -prootpassword --silent; then
+                                echo "MySQL is up!"
+                                break
+                            else
+                                echo "Waiting for MySQL to start... ($i/30)"
+                                sleep 3
+                            fi
+                        done
                     '''
-        
-                    // Run backend
+
                     sh '''
-                    docker run -d --name backend --network devops-network \
+                        docker run -d --name backend --network devops-network \
                         -p 8089:8089 imenbedoui/spring-kaddem2:latest
                     '''
-        
-                    // Run frontend using unique tag
+
                     sh """
-                    docker run -d --name frontend --network devops-network \
-                        -p 4200:8080 imenbedoui/front:${IMAGE_TAG}
+                        docker run -d --name frontend --network devops-network \
+                        -p 4200:8080 imenbedoui/front:${env.IMAGE_TAG}
                     """
                 }
             }
         }
-
+    }
 
     post {
         failure {
