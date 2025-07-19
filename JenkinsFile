@@ -121,11 +121,6 @@ pipeline {
         }
     }
 
-    post {
-        failure {
-            mail to: 'nejdbedoui@gmail.com',
-                 subject: "Angular Build Failed: ${env.JOB_NAME}",
-                 body: "Check Jenkins for details: ${env.BUILD_URL}"
-        }
+    
     }
 }
